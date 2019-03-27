@@ -45,9 +45,7 @@ def pca(data, components=None, variance_sum_ratio=None):
     V = V[:, ordering]
 
     if variance_sum_ratio is not None:
-        for i in range(len(L)):
-            if L[:i]/L >= variance_sum_ratio:
-                L, V, _ = variance_sum_ratio(L, V, variance_sum_ratio)
+        L, V, _ = slice_variance_sum_ratio(L, V, variance_sum_ratio)
 
     elif components is not None:
         L = L[:components]
@@ -117,42 +115,40 @@ def load_pca_or_generate(X_train):
         L, V = unpickle_all('data/olivetti_pca.pik')
         return L, V
     else:
-        L, V = pca(X_train, components=None)
+        L, V = pca(X_train, components=None, variance_sum_ratio=0.95)
         pickle_all([L, V], 'data/olivetti_pca.pik')
         return L, V
 
 
-def reconstructions_components(x, V, dims, x_mean=None):
+def reconstructions_components(x, V, dims, x_mean):
     # size of data (size of single image)
-    l = V.shape[0]
-    if x_mean is not None:
-        x = x - x_mean
+    length_data = V.shape[0]
+    x = x - x_mean
 
     # l_i = V.T \cdot xi
     # otrzymujemy wagi
-    x = np.dot(V.T, x)
+    l = np.dot(V.T, x)
 
-    # rekonstrukcja
-    # tworzymy listi obrazow rekonstrukcji
-    reconstructions = np.zeros((len(dims), l))
+    # rekonstrukcje
+    # tworzymy liste obrazow rekonstrukcji
+    reconstructions = np.zeros((len(dims), length_data))
     for i, dim in enumerate(dims):
-        reconstructions[i] = V[:, :dim].dot(x[:dim])
-        if x_mean is not None:
-            reconstructions[i] += x_mean
+        reconstructions[i] = V[:, :dim].dot(l[:dim])
+        reconstructions[i] += x_mean
 
     return reconstructions
 
 
-def reconstructions_variance_sum_ratios(x, L, V, variance_sum_ratios, x_mean=None):
+def reconstructions_variance_sum_ratios(x, L, V, variance_sum_ratios, x_mean):
     # size of data (size of single image)
-    l = V.shape[0]
+    length_data = V.shape[0]
     if x_mean is not None:
         x = x - x_mean
-    x = np.dot(V.T, x)
-    reconstructions = np.zeros((len(variance_sum_ratios), l))
+    l = np.dot(V.T, x)
+    reconstructions = np.zeros((len(variance_sum_ratios), length_data))
     for i, variance_sum_ratio in enumerate(variance_sum_ratios):
         _, _, slice_index = slice_variance_sum_ratio(L, V, variance_sum_ratio)
-        reconstructions[i] = V[:, :slice_index].dot(x[:slice_index])
+        reconstructions[i] = V[:, :slice_index].dot(l[:slice_index])
         if x_mean is not None:
             reconstructions[i] += x_mean
 
@@ -230,27 +226,20 @@ def main():
     plt.show()
 
     components = [0, 1, 100, 200, 300, 400, 450, 500, 750, 1000, 2000, 2500, 3000, 3500, 4096]
-    reconstructions = reconstructions_components(img, V, components, x_mean=x_mean)
     originals = np.tile(img, (len(components), 1))
-    maes = [np.sum(np.abs(originals[i]-reconstructions[i])) / reconstructions[i].size for i in range(len(components))]
+    reconstructions = reconstructions_components(img, V, components, x_mean=x_mean)
+    maes = [np.sum(np.abs(originals[i]-reconstructions[i])) / originals[i].size for i in range(len(components))]
     plt.plot(components, maes)
     plt.show()
-    show_image_pairs(originals, reconstructions, 'Rekonstrukcja PCA', subtitles=['dim of V:' + str(dim)
-                                                                                 for dim in components], maes=maes)
+    dim_subtitles = ['dim of V:' + str(dim) for dim in components]
+    show_image_pairs(originals, reconstructions, 'Rekonstrukcja PCA components', subtitles=dim_subtitles, maes=maes)
 
 
-    img = X_test[5, :].T
-    variance_sum_ratios = np.asarray([0, 0.1, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9, 0.91, 0.92, 0.93, 0.95, 0.98,
-                                      0.99, 0.995, 0.999])
-    reconstructions = reconstructions_variance_sum_ratios(img, L, V, variance_sum_ratios, x_mean=x_mean)
-    originals = np.tile(img, (len(variance_sum_ratios), 1))
-    maes = [np.sum(np.abs(originals[i]-reconstructions[i])) / reconstructions[i].size
-            for i in range(len(variance_sum_ratios))]
-    plt.plot(variance_sum_ratios, maes)
-    plt.show()
-    show_image_pairs(originals, reconstructions, 'Rekonstrukcja PCA',
-                     subtitles=['vsr:' + str(vsr) for vsr in variance_sum_ratios], maes=maes)
-
+    # redukowanie wymiarowosci po wariancji
+    _, _, i = slice_variance_sum_ratio(L, V, 0.95)
+    print("0.95 ", i)
+    _, _, i = slice_variance_sum_ratio(L, V, 0.99)
+    print("0.99 ", i)
 
 if __name__ == '__main__':
     main()
