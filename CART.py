@@ -126,23 +126,25 @@ def main():
     X_train, X_test, y_train, y_test = train_test_split(olivetti.data, y, test_size=0.2,
                                                         stratify=y, random_state=0)
     x_mean = np.mean(X_train, axis=0)
-    L, V = load_pca_or_generate(olivetti.data)
+    L, V = load_pca_or_generate(X_train)
 
     n = 50
-    X_train = X_train.dot(V[:, :n])
-    X_test = X_test.dot(V[:, :n])
+    X_train_pca = X_train.dot(V[:, :n])
+    X_test_pca = X_test.dot(V[:, :n])
     data_all = olivetti.data.dot(V[:, :n])
 
     #print(data_all[0, :5])
     #print(X_test[0, :5])
 
     dt = DecisionTree(impurity="impurity_entropy")
-    #dt.fit(X_train, y_train)
-    X = olivetti.data.dot(V[:, :n])
-    dt.fit(X, y)
+    dt.fit(X_train_pca, y_train)
     np.set_printoptions(precision=1)
     print(dt.tree_)
     print(dt.tree_.shape)
+
+    #show_some_images(V.T, indexes=[6, 3, 7])
+    print(dt.predict(X_test_pca[:10, :]))
+    show_some_images(X_test[:10, :])
 
 if __name__ == '__main__':
     main()

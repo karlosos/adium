@@ -19,43 +19,41 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         self.class_labels_ = None
         self.impurity_ = getattr(self, impurity)
 
-    def best_split(self, X, y, indexes):
+    def best_split(self,X,y,indexes):
         n = X.shape[1]
-        best_k = None
-        best_v = None
-        best_expect = np.inf
+        best_k=None
+        best_v=None
+        best_expect=np.inf
         for k in range(n):
-            X_indexes_k = X[indexes, k]
-            u = np.unique(X_indexes_k)
+            X_indexes_k = X[indexes,k]
+            u = np.unique(X[indexes,k])
             vals = 0.5 * (u[:-1] + u[1:])
             for v in vals:
                 indexes_left = indexes[np.where(X_indexes_k < v)[0]]
                 indexes_right = indexes[np.where(X_indexes_k >= v)[0]]
-                distr_left = self.y_distribution(y, indexes_left)
-                distr_right = self.y_distribution(y, indexes_right)
-                expect = 1.0 / float(indexes.size) * (indexes_left.size * self.impurity_(distr_left) + \
-                         indexes_right.size * self.impurity_(distr_left))
+                distr_left = self.y_distribution(y,indexes_left)
+                distr_right = self.y_distribution(y,indexes_right)
+                expect = 1.0 / float(indexes.size) * (indexes_left.size *self.impurity_(distr_left) + indexes_right.size *self.impurity_(distr_right))
                 if expect < best_expect:
                     best_expect = expect
                     best_k = k
                     best_v = v
-
         return best_k, best_v, best_expect
 
     def grow_tree(self, X, y, indexes, node_index, depth):
         if self.tree_ is None:
-            self.tree_ = np.zeros((1,7))
+            self.tree_ = np.zeros((1, 7))
             self.tree_[0, 0] = -1.0
-        self.tree_[node_index, DecisionTree.COL_DEPTH] = depth
+
         y_distr = self.y_distribution(y, indexes)
-        self.tree_[node_index, DecisionTree.COL_Y] = self.class_labels_[np.argmax(y_distr)]
         imp = self.impurity_(y_distr)
-        #print('impurity:' + str(imp))
+
+        # todo glebokosc drzewa
+        self.tree_[node_index, DecisionTree.COL_Y] = self.class_labels_[np.argmax(y_distr)]
+        # print("impurity: " + str(imp))
         if imp == 0.0:
             return self.tree_
-
         k, v, expect = self.best_split(X, y, indexes)
-
         if expect >= imp:
             return self.tree_
 
@@ -71,9 +69,8 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         X_indexes_k = X[indexes, k]
         indexes_left = indexes[np.where(X_indexes_k < v)[0]]
         indexes_right = indexes[np.where(X_indexes_k >= v)[0]]
-        self.grow_tree(X, y, indexes_left, nodes_so_far, depth + 1)
+        self.grow_tree(X, y, indexes_left, nodes_so_far, depth)
         self.grow_tree(X, y, indexes_right, nodes_so_far + 1, depth + 1)
-
         return self.tree_
 
     def fit(self, X, y):
@@ -94,7 +91,24 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         :param X:
         :return:
         """
-        return self
+        predictions = np.zeros(X.shape[0])
+        for i in range(X.shape[0]):
+            predictions[i] = self.predict_x(X[i])
+
+        return predictions
+
+
+    def predict_x(self, x):
+        node_index = 0
+        while True:
+            if self.tree_[node_index, DecisionTree.COL_CHILD_LEFT] == 0.0:
+                return self.tree_[node_index, DecisionTree.COL_Y]
+            k, v = int(self.tree_[node_index, DecisionTree.COL_SPLIT_FEATURE]), self.tree_[node_index, DecisionTree.COL_SPLIT_VALUE]
+
+            if x[k] < v:
+                node_index = int(self.tree_[node_index, DecisionTree.COL_CHILD_LEFT])
+            else:
+                node_index = int(self.tree_[node_index, DecisionTree.COL_CHILD_RIGHT])
 
     def y_distribution(self, y, indexes):
         distr = np.zeros(self.class_labels_.size)
