@@ -144,6 +144,10 @@ def main():
 
     #show_some_images(V.T, indexes=[6, 3, 7])
     print(dt.predict(X_test_pca[:10, :]))
+    print(dt.score(X_train_pca, y_train))
+    print(dt.score(X_test_pca, y_test))
+
+    print(np.sum(y_test == dt.predict(X_test_pca)) / y_test.size)
     show_some_images(X_test[:10, :])
 
 if __name__ == '__main__':
