@@ -49,6 +49,7 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         imp = self.impurity_(y_distr)
 
         # todo glebokosc drzewa
+        self.tree_[node_index, DecisionTree.COL_DEPTH] = depth
         self.tree_[node_index, DecisionTree.COL_Y] = self.class_labels_[np.argmax(y_distr)]
         # print("impurity: " + str(imp))
         if imp == 0.0:
