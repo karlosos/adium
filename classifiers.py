@@ -14,11 +14,12 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
     COL_Y = 5
     COL_DEPTH = 6
 
-    def __init__(self, impurity='impurity_entropy', max_depth = None):
+    def __init__(self, impurity='impurity_entropy', max_depth = None, min_node_examples=0.01, pruning=False):
         self.tree_ = None
         self.class_labels_ = None
         self.impurity_ = getattr(self, impurity)
         self.max_depth_ = max_depth
+        self.min_node_examples_ = min_node_examples
 
     def best_split(self, X, y, indexes):
         """
@@ -87,7 +88,8 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         # skojarz z węzłem najbardziej prawdopodobną w nim klasę
         self.tree_[node_index, DecisionTree.COL_Y] = self.class_labels_[np.argmax(y_distr)]
 
-        if imp == 0.0 or ((self.max_depth_ is not None) and (depth == self.max_depth_)):
+        if imp == 0.0 or ((self.max_depth_ is not None) and (depth == self.max_depth_)) or \
+                (indexes.size < self.min_node_examples_ * X.shape[0]):
             return self.tree_
 
         # znajdź najlepsze rozcięcie
