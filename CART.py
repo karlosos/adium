@@ -132,12 +132,15 @@ def main():
     y = y_glasses
     # y = y.target
 
-    show_some_images(olivetti.images, glasses, title="Okularnicy")
+    # show_some_images(olivetti.images, glasses, title="Okularnicy")
 
     X_train, X_test, y_train, y_test = train_test_split(olivetti.data, y, test_size=0.2,
                                                         stratify=y, random_state=0)
     L, V = load_pca_or_generate(X_train)
 
+    ##
+    # Classificatione experiments
+    ##
     n = 50
     X_train_pca = X_train.dot(V[:, :n])
     X_test_pca = X_test.dot(V[:, :n])
@@ -157,8 +160,28 @@ def main():
     print("Wynik klasyfikacji dla zbioru testowego (custom):", np.sum(y_test == dt.predict(X_test_pca)) / y_test.size)
 
     # show_some_images(V.T, indexes=[6, 3, 7])
-    show_some_images(X_test[:10, :], subtitles=predictions)
+    # show_some_images(X_test[:10, :], subtitles=predictions)
 
+    max_depth = int(np.max(dt.tree_[:, DecisionTree.COL_DEPTH]))
+    errors_train = np.zeros(max_depth + 1)
+    errors_test = np.zeros(max_depth + 1)
+    for d in range(max_depth + 1):
+        print('depth: ', d, 'shape:', dt.tree_.shape)
+        dt = DecisionTree(impurity="impurity_entropy", max_depth=d)
+        dt.fit(X_train_pca, y_train)
+        errors_train[d] = 1 - dt.score(X_train_pca, y_train)
+        errors_test[d] = 1 - dt.score(X_test_pca, y_test)
+
+    np.set_printoptions(threshold=np.inf, precision=5)
+    best_depth = np.argmin(errors_test)
+    print('BEST DEPTH:', str(best_depth), " WITH TEST ACCURACY:", 1 - errors_test[best_depth])
+    print('ERRORS TEST: ', errors_test)
+    print('ERRORS TRAIN: ', errors_train)
+
+    plt.figure()
+    plt.plot(errors_train, color='black', marker='o')
+    plt.plot(errors_test, color='red', marker='o')
+    plt.show()
 
 if __name__ == '__main__':
     main()
