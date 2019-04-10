@@ -146,7 +146,7 @@ def main():
     X_test_pca = X_test.dot(V[:, :n])
     data_all = olivetti.data.dot(V[:, :n])
 
-    dt = DecisionTree(impurity="impurity_entropy")
+    dt = DecisionTree(impurity="impurity_entropy", pruning=True)
     dt.fit(X_train_pca, y_train)
 
     print(dt.tree_)
@@ -191,26 +191,28 @@ def main():
     # Testy dla sample
     ##
 
-    min_node_vals = np.arange(0.10, 0, -0.01)
-    errors_train = np.zeros(min_node_vals.size)
-    errors_test = np.zeros(min_node_vals.size)
-    for i, min_node_examples in enumerate(min_node_vals):
-        dt = DecisionTree(impurity="impurity_entropy", min_node_examples=min_node_examples)
-        dt.fit(X_train_pca, y_train)
-        print('min node examples: ', min_node_examples)
-        errors_train[i] = 1 - dt.score(X_train_pca, y_train)
-        errors_test[i] = 1 - dt.score(X_test_pca, y_test)
+    # min_node_vals = np.arange(0.10, 0, -0.01)
+    # errors_train = np.zeros(min_node_vals.size)
+    # errors_test = np.zeros(min_node_vals.size)
+    # for i, min_node_examples in enumerate(min_node_vals):
+    #     dt = DecisionTree(impurity="impurity_entropy", min_node_examples=min_node_examples)
+    #     dt.fit(X_train_pca, y_train)
+    #     print('min node examples: ', min_node_examples)
+    #     errors_train[i] = 1 - dt.score(X_train_pca, y_train)
+    #     errors_test[i] = 1 - dt.score(X_test_pca, y_test)
+    #
+    # np.set_printoptions(threshold=np.inf, precision=5)
+    # best_depth = np.argmin(errors_test)
+    # print('BEST DEPTH:', str(best_depth), " WITH TEST ACCURACY:", 1 - errors_test[best_depth])
+    # print('ERRORS TEST: ', errors_test)
+    # print('ERRORS TRAIN: ', errors_train)
+    #
+    # plt.figure()
+    # plt.plot(errors_train, color='black', marker='o')
+    # plt.plot(errors_test, color='red', marker='o')
+    # plt.show()
 
-    np.set_printoptions(threshold=np.inf, precision=5)
-    best_depth = np.argmin(errors_test)
-    print('BEST DEPTH:', str(best_depth), " WITH TEST ACCURACY:", 1 - errors_test[best_depth])
-    print('ERRORS TEST: ', errors_test)
-    print('ERRORS TRAIN: ', errors_train)
 
-    plt.figure()
-    plt.plot(errors_train, color='black', marker='o')
-    plt.plot(errors_test, color='red', marker='o')
-    plt.show()
 
 if __name__ == '__main__':
     main()

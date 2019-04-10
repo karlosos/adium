@@ -20,6 +20,8 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         self.impurity_ = getattr(self, impurity)
         self.max_depth_ = max_depth
         self.min_node_examples_ = min_node_examples
+        self.pruning_ = pruning
+        self.penalty_ = 0.01
 
     def best_split(self, X, y, indexes):
         """
@@ -124,30 +126,56 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         self.class_labels_ = np.unique(y)
         self.grow_tree(X, y, np.arange(X.shape[0]), 0, 0)
 
+        if self.pruning_:
+            scores = self.exhaustive_subtrees(X, y)
+            print("Scores:", scores)
         return self
 
-    def predict(self, X):
+    def exhaustive_subtrees(self, X, y):
+        tree_prime = np.copy(self.tree_)
+        tree_prime[0, DecisionTree.COL_CHILD_LEFT] = 0
+        tree_prime[0, DecisionTree.COL_CHILD_RIGHT] = 0
+        scores = {}
+        return self.do_exhaustive_subtrees(X, y, tree_prime, [0], scores)
+
+    def do_exhaustive_subtrees(self, X, y, tree_prime, indexes_prime, scores):
+        """
+        :param X:
+        :param y:
+        :param tree_prime: aktualne drzewko
+        :param indexes_prime: indeksy w tprime ktore biora udzial
+        :param scores:
+        :return:
+        """
+        # ocena drzewka tree_prime
+        err = 1 - np.sum(self.predict(X, tree=tree_prime) == y) / float(X.shape[0])
+        leaves = np.sum(tree_prime[indexes_prime, DecisionTree.COL_CHILD_LEFT] == 0)
+        scores[str(indexes_prime)] = err + leaves * self.penalty_
+        return scores
+
+    def predict(self, X, tree=None):
         """
         Przewidujemy labelki dla danych X
         """
         predictions = np.zeros(X.shape[0])
         for i in range(X.shape[0]):
-            predictions[i] = self.predict_x(X[i])
+            predictions[i] = self.predict_x(X[i], tree)
 
         return predictions
 
-    def predict_x(self, x):
+    def predict_x(self, x, tree=None):
+        tree = self.tree_ if tree is None else tree
         node_index = 0
         while True:
-            if self.tree_[node_index, DecisionTree.COL_CHILD_LEFT] == 0.0:
-                return self.tree_[node_index, DecisionTree.COL_Y]
-            k, v = int(self.tree_[node_index, DecisionTree.COL_SPLIT_FEATURE]), self.tree_[node_index,
+            if tree[node_index, DecisionTree.COL_CHILD_LEFT] == 0.0:
+                return tree[node_index, DecisionTree.COL_Y]
+            k, v = int(tree[node_index, DecisionTree.COL_SPLIT_FEATURE]), tree[node_index,
                                                                                            DecisionTree.COL_SPLIT_VALUE]
 
             if x[k] < v:
-                node_index = int(self.tree_[node_index, DecisionTree.COL_CHILD_LEFT])
+                node_index = int(tree[node_index, DecisionTree.COL_CHILD_LEFT])
             else:
-                node_index = int(self.tree_[node_index, DecisionTree.COL_CHILD_RIGHT])
+                node_index = int(tree[node_index, DecisionTree.COL_CHILD_RIGHT])
 
     def y_distribution(self, y, indexes):
         """
