@@ -125,11 +125,11 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         """
         self.class_labels_ = np.unique(y)
         self.grow_tree(X, y, np.arange(X.shape[0]), 0, 0)
-        print('tree size:', self.tree_.shape)
+        #print('tree size:', self.tree_.shape)
         if self.pruning_:
             scores, subtrees = self.exhaustive_subtrees(X, y)
-            print("Scores:", scores)
-            print('Scores len:', len(scores))
+            #print("Scores:", scores)
+            #print('Scores len:', len(scores))
             best_score = np.inf
             best_key = None
             for key, value in scores.items():

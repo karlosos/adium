@@ -216,7 +216,32 @@ def main():
     # Jak kara lambda wpływa
     ##
 
+    dt = DecisionTree(impurity="impurity_entropy", pruning=True)
+    dt.fit(X_train_pca, y_train)
 
+    pentalties = np.arange(0.02, 0.0, -0.0025)
+    errors_train = np.zeros(pentalties.size)
+    errors_test = np.zeros(pentalties.size)
+    for i, penalty in enumerate(pentalties):
+        print('penalty', penalty)
+        dt = DecisionTree(impurity="impurity_entropy", pruning=True, penalty=penalty)
+        t1 = time.time()
+        dt.fit(X_train_pca, y_train)
+        t2 = time.time()
+        print('time:', t2-t1)
+        errors_train[i] = 1 - dt.score(X_train_pca, y_train)
+        errors_test[i] = 1 - dt.score(X_test_pca, y_test)
+
+    np.set_printoptions(threshold=np.inf, precision=5)
+    best_penalty_index = np.argmin(errors_test)
+    print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 - errors_test[best_penalty_index])
+    print('ERRORS TEST: ', errors_test)
+    print('ERRORS TRAIN: ', errors_train)
+
+    plt.figure()
+    plt.plot(errors_train, color='black', marker='o')
+    plt.plot(errors_test, color='red', marker='o')
+    plt.show()
 
 if __name__ == '__main__':
     main()
