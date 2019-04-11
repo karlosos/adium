@@ -141,7 +141,7 @@ def main():
     ##
     # Classificatione experiments
     ##
-    n = 30
+    n = 50
     X_train_pca = X_train.dot(V[:, :n])
     X_test_pca = X_test.dot(V[:, :n])
     data_all = olivetti.data.dot(V[:, :n])
@@ -211,6 +211,10 @@ def main():
     # plt.plot(errors_train, color='black', marker='o')
     # plt.plot(errors_test, color='red', marker='o')
     # plt.show()
+
+    ##
+    # Jak kara lambda wpływa
+    ##
 
 
 

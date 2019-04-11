@@ -14,14 +14,14 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
     COL_Y = 5
     COL_DEPTH = 6
 
-    def __init__(self, impurity='impurity_entropy', max_depth = None, min_node_examples=0.01, pruning=False):
+    def __init__(self, impurity='impurity_entropy', max_depth = None, min_node_examples=0.01, pruning=False, penalty=0.01):
         self.tree_ = None
         self.class_labels_ = None
         self.impurity_ = getattr(self, impurity)
         self.max_depth_ = max_depth
         self.min_node_examples_ = min_node_examples
         self.pruning_ = pruning
-        self.penalty_ = 0.01
+        self.penalty_ = penalty
 
     def best_split(self, X, y, indexes):
         """
@@ -125,10 +125,19 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         """
         self.class_labels_ = np.unique(y)
         self.grow_tree(X, y, np.arange(X.shape[0]), 0, 0)
-
+        print('tree size:', self.tree_.shape)
         if self.pruning_:
-            scores = self.exhaustive_subtrees(X, y)
+            scores, subtrees = self.exhaustive_subtrees(X, y)
             print("Scores:", scores)
+            print('Scores len:', len(scores))
+            best_score = np.inf
+            best_key = None
+            for key, value in scores.items():
+                if value < best_score:
+                    best_score = value
+                    best_key = key
+
+            self.tree_ = subtrees[best_key]
         return self
 
     def exhaustive_subtrees(self, X, y):
@@ -136,9 +145,11 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         tree_prime[0, DecisionTree.COL_CHILD_LEFT] = 0
         tree_prime[0, DecisionTree.COL_CHILD_RIGHT] = 0
         scores = {}
-        return self.do_exhaustive_subtrees(X, y, tree_prime, [0], scores)
+        subtrees = {}
+        self.do_exhaustive_subtrees(X, y, tree_prime, np.array([0]).astype(int), scores, subtrees)
+        return scores, subtrees
 
-    def do_exhaustive_subtrees(self, X, y, tree_prime, indexes_prime, scores):
+    def do_exhaustive_subtrees(self, X, y, tree_prime, indexes_prime, scores, subtrees):
         """
         :param X:
         :param y:
@@ -149,8 +160,39 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         """
         # ocena drzewka tree_prime
         err = 1 - np.sum(self.predict(X, tree=tree_prime) == y) / float(X.shape[0])
-        leaves = np.sum(tree_prime[indexes_prime, DecisionTree.COL_CHILD_LEFT] == 0)
-        scores[str(indexes_prime)] = err + leaves * self.penalty_
+        leaves = np.sum(tree_prime[indexes_prime, DecisionTree.COL_CHILD_LEFT] == 0.0)
+        key = str(indexes_prime)
+        scores[key] = err + leaves * self.penalty_
+        subtrees[key] = tree_prime
+        # jakie są liście w drzewko tree_prime
+        leaves_indexes = indexes_prime[
+            (np.where(tree_prime[indexes_prime, DecisionTree.COL_CHILD_LEFT] == 0.0))[0]]
+        # nieliście w całym drzewie
+        nonleaves_indexes = np.where(self.tree_[:, DecisionTree.COL_CHILD_LEFT] > 0.0)[0]
+        # wiemy w jakich punktach możemy podpinać
+        nodes_to_extend = np.intersect1d(leaves_indexes, nonleaves_indexes).astype(int)
+        for t in nodes_to_extend:
+            indexes_bis = np.copy(indexes_prime)
+            indexes_bis = np.append(indexes_bis, self.tree_[t, DecisionTree.COL_CHILD_LEFT]).astype(int)
+            indexes_bis = np.append(indexes_bis, self.tree_[t, DecisionTree.COL_CHILD_RIGHT]).astype(int)
+            indexes_bis.sort()
+            key = str(indexes_bis)
+
+            if key not in scores:
+                tree_bis = np.copy(tree_prime)
+
+                # adding 2 nodes to tree_bis at node t - wezel ma dzieci (aktywujemy linki)
+                tree_bis[t, DecisionTree.COL_CHILD_LEFT] = self.tree_[t, DecisionTree.COL_CHILD_LEFT]
+                tree_bis[t, DecisionTree.COL_CHILD_RIGHT] = self.tree_[t, DecisionTree.COL_CHILD_RIGHT]
+
+                # killing links to grandchildren from node t - wyzerowujemy dzieci podpiętych wcześniej dzieci
+                tree_bis[tree_bis[t, DecisionTree.COL_CHILD_LEFT].astype(int), DecisionTree.COL_CHILD_LEFT] = 0
+                tree_bis[tree_bis[t, DecisionTree.COL_CHILD_LEFT].astype(int), DecisionTree.COL_CHILD_RIGHT] = 0
+                tree_bis[tree_bis[t, DecisionTree.COL_CHILD_RIGHT].astype(int), DecisionTree.COL_CHILD_LEFT] = 0
+                tree_bis[tree_bis[t, DecisionTree.COL_CHILD_RIGHT].astype(int), DecisionTree.COL_CHILD_RIGHT] = 0
+
+                self.do_exhaustive_subtrees(X, y, tree_bis, indexes_bis, scores, subtrees)
+
         return scores
 
     def predict(self, X, tree=None):
