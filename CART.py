@@ -116,6 +116,69 @@ def show_some_images(images, indexes=None, as_grid=True, title=None, subtitles=N
     plt.show()
 
 
+def dimension_comprasion():
+    np.set_printoptions(threshold=np.inf, precision=1)
+    olivetti = datasets.fetch_olivetti_faces()
+
+    glasses = np.genfromtxt('olivetti_glasses.txt', delimiter=',').astype(int)
+
+    # tworzymy wektor z labelkami, czy dane zdjęcie przedstawia okularnika
+    y_glasses = np.zeros(olivetti.data.shape[0])
+    y_glasses = y_glasses.astype(int)
+    y_glasses[glasses] = 1
+
+    # ile osób ma okulary w zbiorze danych
+    # print(np.where(y_glasses == 1)[0].size / float(olivetti.data.shape[0]))
+
+    # Wybraliśmy, że będziemy uczyć klasyfikator po okularach.
+    y = y_glasses
+    # y = y.target
+
+    # show_some_images(olivetti.images, glasses, title="Okularnicy")
+
+    X_train, X_test, y_train, y_test = train_test_split(olivetti.data, y, test_size=0.2,
+                                                        stratify=y, random_state=0)
+    L, V = load_pca_or_generate(X_train)
+
+    ##
+    # Classificatione experiments
+    ##
+    dimensions = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70]
+    errors_train = []
+    errors_test = []
+    #n = 50
+    for n in dimensions:
+        X_train_pca = X_train.dot(V[:, :n])
+        X_test_pca = X_test.dot(V[:, :n])
+        data_all = olivetti.data.dot(V[:, :n])
+
+        dt = DecisionTree(impurity="impurity_entropy")
+        t1 = time.time()
+        dt.fit(X_train_pca, y_train)
+        t2 = time.time()
+        print("Time: ", t2 - t1)
+
+        print(dt.tree_)
+        print(dt.tree_.shape)
+        print(np.sum(dt.tree_[:, DecisionTree.COL_CHILD_LEFT] == 0.0))
+
+        predictions = dt.predict(X_test_pca[:10, :])
+
+        print(predictions)
+        print("Dimension:", n)
+        print("Wynik klasyfikacji dla zbioru uczącego:", dt.score(X_train_pca, y_train))
+        errors_test.append(dt.score(X_test_pca, y_test))
+        print("Wynik klasyfikacji dla zbioru testowego:", dt.score(X_test_pca, y_test))
+        print("Wynik klasyfikacji dla zbioru testowego (custom):", np.sum(y_test == dt.predict(X_test_pca)) / y_test.size)
+
+    plt.style.use('grayscale')
+    plt.plot(dimensions, errors_test)
+    plt.title("Błąd testowy dla liczby użytych cech")
+    plt.xlabel("Lizba użytych cech")
+    plt.ylabel("Błąd testowy")
+    plt.savefig("output_plots/dimensions_test.eps")
+    plt.show()
+
 def main():
     np.set_printoptions(threshold=np.inf, precision=1)
     olivetti = datasets.fetch_olivetti_faces()
@@ -320,4 +383,5 @@ def tune_penalty():
 
 if __name__ == '__main__':
     #main()
-    tune_penalty()
+    #tune_penalty()
+    dimension_comprasion()
