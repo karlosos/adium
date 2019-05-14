@@ -143,7 +143,7 @@ def dimension_comprasion():
     ##
     # Classificatione experiments
     ##
-    dimensions = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70]
+    dimensions = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70]
     errors_train = []
     errors_test = []
     #n = 50
@@ -171,13 +171,300 @@ def dimension_comprasion():
         print("Wynik klasyfikacji dla zbioru testowego:", dt.score(X_test_pca, y_test))
         print("Wynik klasyfikacji dla zbioru testowego (custom):", np.sum(y_test == dt.predict(X_test_pca)) / y_test.size)
 
-    plt.style.use('grayscale')
+    plt.figure()
     plt.plot(dimensions, errors_test)
+    plt.title("Dokładność testowa dla liczby użytych cech")
+    plt.xlabel("Lizba użytych cech")
+    plt.ylabel("Dokładność testowy")
+    plt.savefig("docs/dimensions_test.eps")
+
+def dimension_impurity_comprasion():
+    np.set_printoptions(threshold=np.inf, precision=1)
+    olivetti = datasets.fetch_olivetti_faces()
+
+    glasses = np.genfromtxt('olivetti_glasses.txt', delimiter=',').astype(int)
+
+    # tworzymy wektor z labelkami, czy dane zdjęcie przedstawia okularnika
+    y_glasses = np.zeros(olivetti.data.shape[0])
+    y_glasses = y_glasses.astype(int)
+    y_glasses[glasses] = 1
+
+    # ile osób ma okulary w zbiorze danych
+    # print(np.where(y_glasses == 1)[0].size / float(olivetti.data.shape[0]))
+
+    # Wybraliśmy, że będziemy uczyć klasyfikator po okularach.
+    y = y_glasses
+    # y = y.target
+
+    # show_some_images(olivetti.images, glasses, title="Okularnicy")
+
+    X_train, X_test, y_train, y_test = train_test_split(olivetti.data, y, test_size=0.2,
+                                                        stratify=y, random_state=0)
+    L, V = load_pca_or_generate(X_train)
+
+    ##
+    # Classificatione experiments
+    ##
+    dimensions = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70]
+    impurities = ['impurity_error', 'impurity_entropy', 'impurity_gini']
+    errors_test = np.zeros((len(impurities), len(dimensions)))
+    errors_times = np.zeros((len(impurities), len(dimensions)))
+    for dimension_index, n in enumerate(dimensions):
+        X_train_pca = X_train.dot(V[:, :n])
+        X_test_pca = X_test.dot(V[:, :n])
+
+        for impurity_index, impurity in enumerate(impurities):
+            dt = DecisionTree(impurity=impurity)
+            t1 = time.time()
+            dt.fit(X_train_pca, y_train)
+            t2 = time.time()
+            errors_times[impurity_index, dimension_index] = t2-t1
+            errors_test[impurity_index, dimension_index] = 1-dt.score(X_test_pca, y_test)
+
+    plt.figure()
+    for i in range(len(impurities)):
+        plt.plot(dimensions, errors_test[i], label=impurities[i])
+
+
     plt.title("Błąd testowy dla liczby użytych cech")
     plt.xlabel("Lizba użytych cech")
     plt.ylabel("Błąd testowy")
-    plt.savefig("output_plots/dimensions_test.eps")
-    plt.show()
+    plt.legend()
+    plt.savefig("docs/dimensions_entropy_test.eps")
+
+
+def depth_comparison():
+    np.set_printoptions(threshold=np.inf, precision=1)
+    olivetti = datasets.fetch_olivetti_faces()
+
+    glasses = np.genfromtxt('olivetti_glasses.txt', delimiter=',').astype(int)
+
+    # tworzymy wektor z labelkami, czy dane zdjęcie przedstawia okularnika
+    y_glasses = np.zeros(olivetti.data.shape[0])
+    y_glasses = y_glasses.astype(int)
+    y_glasses[glasses] = 1
+
+    # ile osób ma okulary w zbiorze danych
+    # print(np.where(y_glasses == 1)[0].size / float(olivetti.data.shape[0]))
+
+    # Wybraliśmy, że będziemy uczyć klasyfikator po okularach.
+    y = y_glasses
+    # y = y.target
+
+    # show_some_images(olivetti.images, glasses, title="Okularnicy")
+
+    X_train, X_test, y_train, y_test = train_test_split(olivetti.data, y, test_size=0.2,
+                                                        stratify=y, random_state=0)
+    L, V = load_pca_or_generate(X_train)
+    n = 50
+    X_train_pca = X_train.dot(V[:, :n])
+    X_test_pca = X_test.dot(V[:, :n])
+    data_all = olivetti.data.dot(V[:, :n])
+
+    dt = DecisionTree(impurity="impurity_entropy")
+    dt.fit(X_train_pca, y_train)
+    predictions = dt.predict(X_test_pca[:10, :])
+
+    max_depth = int(np.max(dt.tree_[:, DecisionTree.COL_DEPTH]))
+    errors_train = np.zeros(max_depth + 1)
+    errors_test = np.zeros(max_depth + 1)
+    for d in range(max_depth + 1):
+        dt = DecisionTree(impurity="impurity_entropy", max_depth=d)
+        dt.fit(X_train_pca, y_train)
+        print('depth: ', d, 'shape:', dt.tree_.shape)
+        errors_train[d] = 1 - dt.score(X_train_pca, y_train)
+        errors_test[d] = 1 - dt.score(X_test_pca, y_test)
+
+    np.set_printoptions(threshold=np.inf, precision=5)
+    best_depth = np.argmin(errors_test)
+
+    plt.figure()
+    plt.plot(errors_train, marker='o', label="train errors")
+    plt.plot(errors_test, marker='o', label="test errors")
+    plt.legend()
+    plt.title("Głębokość drzewa")
+    plt.savefig("docs/depth_test.eps")
+
+def sample_size_comparison():
+    np.set_printoptions(threshold=np.inf, precision=1)
+    olivetti = datasets.fetch_olivetti_faces()
+
+    glasses = np.genfromtxt('olivetti_glasses.txt', delimiter=',').astype(int)
+
+    # tworzymy wektor z labelkami, czy dane zdjęcie przedstawia okularnika
+    y_glasses = np.zeros(olivetti.data.shape[0])
+    y_glasses = y_glasses.astype(int)
+    y_glasses[glasses] = 1
+
+    # ile osób ma okulary w zbiorze danych
+    # print(np.where(y_glasses == 1)[0].size / float(olivetti.data.shape[0]))
+
+    # Wybraliśmy, że będziemy uczyć klasyfikator po okularach.
+    y = y_glasses
+    # y = y.target
+
+    # show_some_images(olivetti.images, glasses, title="Okularnicy")
+
+    X_train, X_test, y_train, y_test = train_test_split(olivetti.data, y, test_size=0.2,
+                                                        stratify=y, random_state=0)
+    L, V = load_pca_or_generate(X_train)
+    n = 50
+    X_train_pca = X_train.dot(V[:, :n])
+    X_test_pca = X_test.dot(V[:, :n])
+    data_all = olivetti.data.dot(V[:, :n])
+
+    dt = DecisionTree(impurity="impurity_entropy")
+    dt.fit(X_train_pca, y_train)
+    predictions = dt.predict(X_test_pca[:10, :])
+
+    min_node_vals = np.arange(0.10, 0, -0.01)
+    errors_train = np.zeros(min_node_vals.size)
+    errors_test = np.zeros(min_node_vals.size)
+    for i, min_node_examples in enumerate(min_node_vals):
+        dt = DecisionTree(impurity="impurity_entropy", min_node_examples=min_node_examples)
+        t1 = time.time()
+        dt.fit(X_train_pca, y_train)
+        t2 = time.time()
+        print("time:", t2-t1)
+        print('min node examples: ', min_node_examples)
+        errors_train[i] = 1 - dt.score(X_train_pca, y_train)
+        errors_test[i] = 1 - dt.score(X_test_pca, y_test)
+
+    np.set_printoptions(threshold=np.inf, precision=5)
+    best_depth = np.argmin(errors_test)
+    print('BEST DEPTH:', str(best_depth), " WITH TEST ACCURACY:", 1 - errors_test[best_depth])
+    print('ERRORS TEST: ', errors_test)
+    print('ERRORS TRAIN: ', errors_train)
+
+    plt.figure()
+    plt.plot(min_node_vals, errors_train, marker='o', label="train errors")
+    plt.plot(min_node_vals, errors_test, marker='o', label="test errors")
+    plt.xlim(np.max(min_node_vals), np.min(min_node_vals))
+    plt.legend()
+    plt.title("Procentowa zawartość przykładów w węźle")
+    plt.savefig("docs/min_node_vals_test.eps")
+
+
+def pruning_comparison_greedy():
+    np.set_printoptions(threshold=np.inf, precision=1)
+    olivetti = datasets.fetch_olivetti_faces()
+
+    glasses = np.genfromtxt('olivetti_glasses.txt', delimiter=',').astype(int)
+
+    # tworzymy wektor z labelkami, czy dane zdjęcie przedstawia okularnika
+    y_glasses = np.zeros(olivetti.data.shape[0])
+    y_glasses = y_glasses.astype(int)
+    y_glasses[glasses] = 1
+
+    # ile osób ma okulary w zbiorze danych
+    # print(np.where(y_glasses == 1)[0].size / float(olivetti.data.shape[0]))
+
+    # Wybraliśmy, że będziemy uczyć klasyfikator po okularach.
+    y = y_glasses
+    # y = y.target
+
+    # show_some_images(olivetti.images, glasses, title="Okularnicy")
+
+    X_train, X_test, y_train, y_test = train_test_split(olivetti.data, y, test_size=0.2,
+                                                        stratify=y, random_state=0)
+    L, V = load_pca_or_generate(X_train)
+    n = 50
+    X_train_pca = X_train.dot(V[:, :n])
+    X_test_pca = X_test.dot(V[:, :n])
+    data_all = olivetti.data.dot(V[:, :n])
+
+    dt = DecisionTree(impurity="impurity_entropy")
+    dt.fit(X_train_pca, y_train)
+
+    pentalties = np.arange(0.015, 0.0, -0.0025)
+    errors_train = np.zeros(pentalties.size)
+    errors_test = np.zeros(pentalties.size)
+    for i, penalty in enumerate(pentalties):
+        print('penalty', penalty)
+        dt = DecisionTree(impurity="impurity_entropy", pruning='greedy_subtrees', penalty=penalty)
+        t1 = time.time()
+        dt.fit(X_train_pca, y_train)
+        t2 = time.time()
+        print('time:', t2-t1)
+        errors_train[i] = 1 - dt.score(X_train_pca, y_train)
+        errors_test[i] = 1 - dt.score(X_test_pca, y_test)
+
+    np.set_printoptions(threshold=np.inf, precision=5)
+    best_penalty_index = np.argmin(errors_test)
+    print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 -
+          errors_test[best_penalty_index])
+    print('ERRORS TEST: ', errors_test)
+    print('ERRORS TRAIN: ', errors_train)
+
+    plt.figure()
+    plt.plot(pentalties, errors_train, color='black', marker='o', label="train")
+    plt.plot(pentalties, errors_test, color='red', marker='o', label="test")
+    plt.legend()
+    plt.xlabel("penalty")
+    plt.xlim(np.max(pentalties), np.min(pentalties))
+    plt.title("Pruning - greedy subtrees")
+    plt.savefig("docs/pruning_greedy.eps")
+
+
+def pruning_comparison_exhaustive():
+    np.set_printoptions(threshold=np.inf, precision=1)
+    olivetti = datasets.fetch_olivetti_faces()
+
+    glasses = np.genfromtxt('olivetti_glasses.txt', delimiter=',').astype(int)
+
+    # tworzymy wektor z labelkami, czy dane zdjęcie przedstawia okularnika
+    y_glasses = np.zeros(olivetti.data.shape[0])
+    y_glasses = y_glasses.astype(int)
+    y_glasses[glasses] = 1
+
+    # ile osób ma okulary w zbiorze danych
+    # print(np.where(y_glasses == 1)[0].size / float(olivetti.data.shape[0]))
+
+    # Wybraliśmy, że będziemy uczyć klasyfikator po okularach.
+    y = y_glasses
+    # y = y.target
+
+    # show_some_images(olivetti.images, glasses, title="Okularnicy")
+
+    X_train, X_test, y_train, y_test = train_test_split(olivetti.data, y, test_size=0.2,
+                                                        stratify=y, random_state=0)
+    L, V = load_pca_or_generate(X_train)
+    n = 50
+    X_train_pca = X_train.dot(V[:, :n])
+    X_test_pca = X_test.dot(V[:, :n])
+    data_all = olivetti.data.dot(V[:, :n])
+
+    dt = DecisionTree(impurity="impurity_entropy")
+    dt.fit(X_train_pca, y_train)
+
+    pentalties = np.arange(0.015, 0.0, -0.0025)
+    errors_train = np.zeros(pentalties.size)
+    errors_test = np.zeros(pentalties.size)
+    for i, penalty in enumerate(pentalties):
+        print('penalty', penalty)
+        dt = DecisionTree(impurity="impurity_entropy", pruning='exhaustive_subtrees', penalty=penalty)
+        t1 = time.time()
+        dt.fit(X_train_pca, y_train)
+        t2 = time.time()
+        print('time:', t2-t1)
+        errors_train[i] = 1 - dt.score(X_train_pca, y_train)
+        errors_test[i] = 1 - dt.score(X_test_pca, y_test)
+
+    np.set_printoptions(threshold=np.inf, precision=5)
+    best_penalty_index = np.argmin(errors_test)
+    print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 -
+          errors_test[best_penalty_index])
+    print('ERRORS TEST: ', errors_test)
+    print('ERRORS TRAIN: ', errors_train)
+
+    plt.figure()
+    plt.plot(pentalties, errors_train, color='black', marker='o', label="train")
+    plt.plot(pentalties, errors_test, color='red', marker='o', label="test")
+    plt.legend()
+    plt.xlabel("penalty")
+    plt.xlim(np.max(pentalties), np.min(pentalties))
+    plt.title("Pruning - exhaustive subtrees")
+    plt.savefig("docs/pruning_exhaustive.eps")
 
 def main():
     np.set_printoptions(threshold=np.inf, precision=1)
@@ -229,7 +516,7 @@ def main():
     print("Wynik klasyfikacji dla zbioru testowego (custom):", np.sum(y_test == dt.predict(X_test_pca)) / y_test.size)
 
     # show_some_images(V.T, indexes=[6, 3, 7])
-    # show_some_images(X_test[:10, :], subtitles=predictions)
+    show_some_images(X_test[:10, :], subtitles=predictions)
 
     ##
     # Testy dla głębokości
@@ -382,6 +669,12 @@ def tune_penalty():
 
 
 if __name__ == '__main__':
+    plt.style.use('default')
     #main()
     #tune_penalty()
-    dimension_comprasion()
+    #dimension_comprasion()
+    #dimension_impurity_comprasion()
+    #depth_comparison()
+    sample_size_comparison()
+    #pruning_comparison_exhaustive()
+    #pruning_comparison_greedy()
