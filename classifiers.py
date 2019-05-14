@@ -14,7 +14,8 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
     COL_Y = 5
     COL_DEPTH = 6
 
-    def __init__(self, impurity='impurity_entropy', max_depth=None, min_node_examples=0.01, pruning=None, penalty=0.01):
+    def __init__(self, impurity='impurity_entropy', max_depth=None, min_node_examples=0.01, pruning=None, penalty=0.01,
+                 auto_pentalties=None):
         print(impurity, max_depth, min_node_examples, pruning, penalty)
         self.tree_ = None
         self.class_labels_ = None
@@ -26,6 +27,7 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         else:
             self.pruning = None
         self.penalty = penalty
+        self.auto_penalties = auto_pentalties
 
     def best_split(self, X, y, indexes):
         """

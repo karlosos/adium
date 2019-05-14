@@ -8,8 +8,7 @@ from sklearn.model_selection import train_test_split
 from classifiers import DecisionTree
 import numpy as np
 from misc import *  # funkcje do picklowania
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import classification_report
+from sklearn.model_selection import KFold
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -239,7 +238,8 @@ def main():
 
     np.set_printoptions(threshold=np.inf, precision=5)
     best_penalty_index = np.argmin(errors_test)
-    print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 - errors_test[best_penalty_index])
+    print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 -
+          errors_test[best_penalty_index])
     print('ERRORS TEST: ', errors_test)
     print('ERRORS TRAIN: ', errors_train)
 
@@ -270,7 +270,8 @@ def main():
 
     np.set_printoptions(threshold=np.inf, precision=5)
     best_penalty_index = np.argmin(errors_test)
-    print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 - errors_test[best_penalty_index])
+    print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 -
+          errors_test[best_penalty_index])
     print('ERRORS TEST: ', errors_test)
     print('ERRORS TRAIN: ', errors_train)
 
@@ -313,30 +314,26 @@ def tune_cart_classifier():
     X_test_pca = X_test.dot(V[:, :n])
     data_all = olivetti.data.dot(V[:, :n])
 
-    # Set the parameters by cross-validation
-    tuned_parameters = [{'pruning': ['greedy_subtrees'],
-                         'pentalty': np.arange(0.015, 0.0, -0.0025)}]
+    penalties = np.array([0.2, 0.015, 0.010, 0])
+    kf = KFold(n_splits=penalties.size, shuffle=True)
 
-    dt = GridSearchCV(DecisionTree(), param_grid=tuned_parameters)
-    dt.fit(X_train_pca, y_train)
+    errors_train = np.zeros(penalties.size)
+    errors_test = np.zeros(penalties.size)
+    penalty_idx = 0
+    for train_index, test_index in kf.split(X_train_pca):
+        X_train, X_test = X_train_pca[train_index], X_train_pca[test_index]
+        y_train_new, y_test = y_train[train_index], y_train[test_index]
 
+        dt = DecisionTree(impurity="impurity_entropy", pruning='greedy_subtrees', penalty=penalties[penalty_idx])
+        dt.fit(X_train, y_train_new)
+        errors_train[penalty_idx] = 1 - dt.score(X_train, y_train_new)
+        errors_test[penalty_idx] = 1 - dt.score(X_test, y_test)
+        print(penalty_idx)
+        penalty_idx += 1
 
-    # t1 = time.time()
-    # dt.fit(X_train_pca, y_train)
-    # t2 = time.time()
-    # print("Time: ", t2 - t1)
-    #
-    # print(dt.tree_)
-    # print(dt.tree_.shape)
-    # print(np.sum(dt.tree_[:, DecisionTree.COL_CHILD_LEFT] == 0.0))
-    #
-    # predictions = dt.predict(X_test_pca[:10, :])
-    #
-    # print(predictions)
-    # print("Wynik klasyfikacji dla zbioru uczącego:", dt.score(X_train_pca, y_train))
-    # print("Wynik klasyfikacji dla zbioru testowego:", dt.score(X_test_pca, y_test))
-    # print("Wynik klasyfikacji dla zbioru testowego (custom):", np.sum(y_test == dt.predict(X_test_pca)) / y_test.size)
+    print(errors_train)
+    print(errors_test)
 
 if __name__ == '__main__':
-    #main()
+    main()
     tune_cart_classifier()
