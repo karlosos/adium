@@ -1,6 +1,6 @@
 from sklearn.base import BaseEstimator, ClassifierMixin
 import numpy as np
-
+from sklearn.model_selection import KFold
 
 class DecisionTree(BaseEstimator, ClassifierMixin):
     """
@@ -14,8 +14,7 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
     COL_Y = 5
     COL_DEPTH = 6
 
-    def __init__(self, impurity='impurity_entropy', max_depth=None, min_node_examples=0.01, pruning=None, penalty=0.01,
-                 auto_pentalties=None):
+    def __init__(self, impurity='impurity_entropy', max_depth=None, min_node_examples=0.01, pruning=None, penalty=0.01):
         print(impurity, max_depth, min_node_examples, pruning, penalty)
         self.tree_ = None
         self.class_labels_ = None
@@ -27,7 +26,6 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         else:
             self.pruning = None
         self.penalty = penalty
-        self.auto_penalties = auto_pentalties
 
     def best_split(self, X, y, indexes):
         """
@@ -360,6 +358,26 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         """
         return 1.0 - np.sum(y_distr**2)
 
+
+def choose_best_penalty(X_train_all, y_train_all, penalties, impurity='impurity_entropy', pruning='greedy_subtrees'):
+    kf = KFold(n_splits=penalties.size, shuffle=True)
+
+    errors_train = np.zeros(penalties.size)
+    errors_test = np.zeros(penalties.size)
+    penalty_idx = 0
+    for train_index, test_index in kf.split(X_train_all):
+        X_train, X_test = X_train_all[train_index], X_train_all[test_index]
+        y_train, y_test = y_train_all[train_index], y_train_all[test_index]
+
+        dt = DecisionTree(impurity=impurity, pruning=pruning, penalty=penalties[penalty_idx])
+        dt.fit(X_train, y_train)
+        errors_train[penalty_idx] = 1 - dt.score(X_train, y_train)
+        errors_test[penalty_idx] = 1 - dt.score(X_test, y_test)
+        penalty_idx += 1
+
+    print(errors_train)
+    print(errors_test)
+    return(penalties[np.argmin(errors_test)])
 
 if __name__ == '__main__':
     y_distr = np.array([0.5, 0.0, 0.25, 0.25])

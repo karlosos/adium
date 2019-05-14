@@ -6,6 +6,7 @@ from sklearn import datasets
 import time
 from sklearn.model_selection import train_test_split
 from classifiers import DecisionTree
+import classifiers
 import numpy as np
 from misc import *  # funkcje do picklowania
 from sklearn.model_selection import KFold
@@ -282,7 +283,7 @@ def main():
     plt.show()
 
 
-def tune_cart_classifier():
+def tune_penalty():
     np.set_printoptions(threshold=np.inf, precision=1)
     olivetti = datasets.fetch_olivetti_faces()
 
@@ -298,7 +299,6 @@ def tune_cart_classifier():
 
     # Wybraliśmy, że będziemy uczyć klasyfikator po okularach.
     y = y_glasses
-    # y = y.target
 
     # show_some_images(olivetti.images, glasses, title="Okularnicy")
 
@@ -314,26 +314,10 @@ def tune_cart_classifier():
     X_test_pca = X_test.dot(V[:, :n])
     data_all = olivetti.data.dot(V[:, :n])
 
-    penalties = np.array([0.2, 0.015, 0.010, 0])
-    kf = KFold(n_splits=penalties.size, shuffle=True)
+    penalties = np.arange(0.015, 0.0, -0.0025)
+    penalty = classifiers.choose_best_penalty(X_train_pca, y_train, penalties)
 
-    errors_train = np.zeros(penalties.size)
-    errors_test = np.zeros(penalties.size)
-    penalty_idx = 0
-    for train_index, test_index in kf.split(X_train_pca):
-        X_train, X_test = X_train_pca[train_index], X_train_pca[test_index]
-        y_train_new, y_test = y_train[train_index], y_train[test_index]
-
-        dt = DecisionTree(impurity="impurity_entropy", pruning='greedy_subtrees', penalty=penalties[penalty_idx])
-        dt.fit(X_train, y_train_new)
-        errors_train[penalty_idx] = 1 - dt.score(X_train, y_train_new)
-        errors_test[penalty_idx] = 1 - dt.score(X_test, y_test)
-        print(penalty_idx)
-        penalty_idx += 1
-
-    print(errors_train)
-    print(errors_test)
 
 if __name__ == '__main__':
-    main()
-    tune_cart_classifier()
+    #main()
+    tune_penalty()
