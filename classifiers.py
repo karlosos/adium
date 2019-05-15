@@ -359,25 +359,29 @@ class DecisionTree(BaseEstimator, ClassifierMixin):
         return 1.0 - np.sum(y_distr**2)
 
 
-def choose_best_penalty(X_train_all, y_train_all, penalties, impurity='impurity_entropy', pruning='greedy_subtrees'):
-    kf = KFold(n_splits=penalties.size, shuffle=True)
+def choose_best_penalty(X_train_all, y_train_all, k, penalties, impurity='impurity_entropy', pruning='greedy_subtrees'):
+    kf = KFold(n_splits=k, shuffle=True)
 
     errors_train = np.zeros(penalties.size)
     errors_test = np.zeros(penalties.size)
-    penalty_idx = 0
-    for train_index, test_index in kf.split(X_train_all):
-        X_train, X_test = X_train_all[train_index], X_train_all[test_index]
-        y_train, y_test = y_train_all[train_index], y_train_all[test_index]
+    for penalty_idx, penalty in enumerate(penalties):
+        for train_index, test_index in kf.split(X_train_all):
+            X_train, X_test = X_train_all[train_index], X_train_all[test_index]
+            y_train, y_test = y_train_all[train_index], y_train_all[test_index]
 
-        dt = DecisionTree(impurity=impurity, pruning=pruning, penalty=penalties[penalty_idx])
-        dt.fit(X_train, y_train)
-        errors_train[penalty_idx] = 1 - dt.score(X_train, y_train)
-        errors_test[penalty_idx] = 1 - dt.score(X_test, y_test)
-        penalty_idx += 1
+            dt = DecisionTree(impurity=impurity, pruning=pruning, penalty=penalties[penalty_idx])
+            dt.fit(X_train, y_train)
+            errors_train[penalty_idx] += 1 - dt.score(X_train, y_train)
+            errors_test[penalty_idx] += 1 - dt.score(X_test, y_test)
 
-    print(errors_train)
-    print(errors_test)
-    return(penalties[np.argmin(errors_test)])
+    print(errors_train/k)
+    print(errors_test/k)
+
+    best_lambda = penalties[np.argmin(errors_test)]
+    print("Wybrana kara:", best_lambda)
+    dt = DecisionTree(impurity=impurity, pruning=pruning, penalty=best_lambda)
+    dt.fit(X_train_all, y_train_all)
+    return(dt)
 
 if __name__ == '__main__':
     y_distr = np.array([0.5, 0.0, 0.25, 0.25])

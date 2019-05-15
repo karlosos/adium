@@ -13,7 +13,7 @@ from sklearn.model_selection import KFold
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-
+from sklearn.svm import SVC
 
 def pca(data, components=None, variance_sum_ratio=None):
     """
@@ -498,137 +498,157 @@ def main():
     X_test_pca = X_test.dot(V[:, :n])
     data_all = olivetti.data.dot(V[:, :n])
 
-    dt = DecisionTree(impurity="impurity_entropy", pruning='greedy_subtrees', penalty=0.0)
-    t1 = time.time()
-    dt.fit(X_train_pca, y_train)
-    t2 = time.time()
-    print("Time: ", t2-t1)
-
-    print(dt.tree_)
-    print(dt.tree_.shape)
-    print(np.sum(dt.tree_[:, DecisionTree.COL_CHILD_LEFT] == 0.0))
-
-    predictions = dt.predict(X_test_pca[:10, :])
-
-    print(predictions)
-    print("Wynik klasyfikacji dla zbioru uczącego:", dt.score(X_train_pca, y_train))
-    print("Wynik klasyfikacji dla zbioru testowego:", dt.score(X_test_pca, y_test))
-    print("Wynik klasyfikacji dla zbioru testowego (custom):", np.sum(y_test == dt.predict(X_test_pca)) / y_test.size)
-
-    # show_some_images(V.T, indexes=[6, 3, 7])
-    show_some_images(X_test[:10, :], subtitles=predictions)
-
-    ##
-    # Testy dla głębokości
-    ##
-
-    max_depth = int(np.max(dt.tree_[:, DecisionTree.COL_DEPTH]))
-    errors_train = np.zeros(max_depth + 1)
-    errors_test = np.zeros(max_depth + 1)
-    for d in range(max_depth + 1):
-        dt = DecisionTree(impurity="impurity_entropy", max_depth=d)
-        dt.fit(X_train_pca, y_train)
-        print('depth: ', d, 'shape:', dt.tree_.shape)
-        errors_train[d] = 1 - dt.score(X_train_pca, y_train)
-        errors_test[d] = 1 - dt.score(X_test_pca, y_test)
-
-    np.set_printoptions(threshold=np.inf, precision=5)
-    best_depth = np.argmin(errors_test)
-    print('BEST DEPTH:', str(best_depth), " WITH TEST ACCURACY:", 1 - errors_test[best_depth])
-    print('ERRORS TEST: ', errors_test)
-    print('ERRORS TRAIN: ', errors_train)
-
-    plt.figure()
-    plt.plot(errors_train, color='black', marker='o')
-    plt.plot(errors_test, color='red', marker='o')
-    plt.show()
-
-    ##
-    # Testy dla sample
-    ##
-
-    min_node_vals = np.arange(0.10, 0, -0.01)
-    errors_train = np.zeros(min_node_vals.size)
-    errors_test = np.zeros(min_node_vals.size)
-    for i, min_node_examples in enumerate(min_node_vals):
-        dt = DecisionTree(impurity="impurity_entropy", min_node_examples=min_node_examples)
-        dt.fit(X_train_pca, y_train)
-        print('min node examples: ', min_node_examples)
-        errors_train[i] = 1 - dt.score(X_train_pca, y_train)
-        errors_test[i] = 1 - dt.score(X_test_pca, y_test)
-
-    np.set_printoptions(threshold=np.inf, precision=5)
-    best_depth = np.argmin(errors_test)
-    print('BEST DEPTH:', str(best_depth), " WITH TEST ACCURACY:", 1 - errors_test[best_depth])
-    print('ERRORS TEST: ', errors_test)
-    print('ERRORS TRAIN: ', errors_train)
-
-    plt.figure()
-    plt.plot(errors_train, color='black', marker='o')
-    plt.plot(errors_test, color='red', marker='o')
-    plt.show()
-
-    ##
-    # Jak kara lambda wpływa
-    ##
-    dt = DecisionTree(impurity="impurity_entropy")
-    dt.fit(X_train_pca, y_train)
-
-    pentalties = np.arange(0.015, 0.0, -0.0025)
-    errors_train = np.zeros(pentalties.size)
-    errors_test = np.zeros(pentalties.size)
-    for i, penalty in enumerate(pentalties):
-        print('penalty', penalty)
-        dt = DecisionTree(impurity="impurity_entropy", pruning='greedy_subtrees', penalty=penalty)
-        t1 = time.time()
-        dt.fit(X_train_pca, y_train)
-        t2 = time.time()
-        print('time:', t2-t1)
-        errors_train[i] = 1 - dt.score(X_train_pca, y_train)
-        errors_test[i] = 1 - dt.score(X_test_pca, y_test)
-
-    np.set_printoptions(threshold=np.inf, precision=5)
-    best_penalty_index = np.argmin(errors_test)
-    print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 -
-          errors_test[best_penalty_index])
-    print('ERRORS TEST: ', errors_test)
-    print('ERRORS TRAIN: ', errors_train)
-
-    plt.figure()
-    plt.plot(errors_train, color='black', marker='o')
-    plt.plot(errors_test, color='red', marker='o')
-    plt.title("greedy")
-    plt.show()
-
+    # dt = DecisionTree(impurity="impurity_entropy", pruning='greedy_subtrees', penalty=0.0)
+    # t1 = time.time()
+    # dt.fit(X_train_pca, y_train)
+    # t2 = time.time()
+    # print("Time: ", t2-t1)
     #
-    # Exhaustive
+    # print(dt.tree_)
+    # print(dt.tree_.shape)
+    # print(np.sum(dt.tree_[:, DecisionTree.COL_CHILD_LEFT] == 0.0))
     #
-    dt = DecisionTree(impurity="impurity_entropy")
-    dt.fit(X_train_pca, y_train)
+    # predictions = dt.predict(X_test_pca[:10, :])
+    #
+    # print(predictions)
+    # print("Wynik klasyfikacji dla zbioru uczącego:", dt.score(X_train_pca, y_train))
+    # print("Wynik klasyfikacji dla zbioru testowego:", dt.score(X_test_pca, y_test))
+    # print("Wynik klasyfikacji dla zbioru testowego (custom):", np.sum(y_test == dt.predict(X_test_pca)) / y_test.size)
+    #
+    # # show_some_images(V.T, indexes=[6, 3, 7])
+    # show_some_images(X_test[:10, :], subtitles=predictions)
+    #
+    # ##
+    # # Testy dla głębokości
+    # ##
+    #
+    # max_depth = int(np.max(dt.tree_[:, DecisionTree.COL_DEPTH]))
+    # errors_train = np.zeros(max_depth + 1)
+    # errors_test = np.zeros(max_depth + 1)
+    # for d in range(max_depth + 1):
+    #     dt = DecisionTree(impurity="impurity_entropy", max_depth=d)
+    #     dt.fit(X_train_pca, y_train)
+    #     print('depth: ', d, 'shape:', dt.tree_.shape)
+    #     errors_train[d] = 1 - dt.score(X_train_pca, y_train)
+    #     errors_test[d] = 1 - dt.score(X_test_pca, y_test)
+    #
+    # np.set_printoptions(threshold=np.inf, precision=5)
+    # best_depth = np.argmin(errors_test)
+    # print('BEST DEPTH:', str(best_depth), " WITH TEST ACCURACY:", 1 - errors_test[best_depth])
+    # print('ERRORS TEST: ', errors_test)
+    # print('ERRORS TRAIN: ', errors_train)
+    #
+    # plt.figure()
+    # plt.plot(errors_train, color='black', marker='o')
+    # plt.plot(errors_test, color='red', marker='o')
+    # plt.show()
+    #
+    # ##
+    # # Testy dla sample
+    # ##
+    #
+    # min_node_vals = np.arange(0.10, 0, -0.01)
+    # errors_train = np.zeros(min_node_vals.size)
+    # errors_test = np.zeros(min_node_vals.size)
+    # for i, min_node_examples in enumerate(min_node_vals):
+    #     dt = DecisionTree(impurity="impurity_entropy", min_node_examples=min_node_examples)
+    #     dt.fit(X_train_pca, y_train)
+    #     print('min node examples: ', min_node_examples)
+    #     errors_train[i] = 1 - dt.score(X_train_pca, y_train)
+    #     errors_test[i] = 1 - dt.score(X_test_pca, y_test)
+    #
+    # np.set_printoptions(threshold=np.inf, precision=5)
+    # best_depth = np.argmin(errors_test)
+    # print('BEST DEPTH:', str(best_depth), " WITH TEST ACCURACY:", 1 - errors_test[best_depth])
+    # print('ERRORS TEST: ', errors_test)
+    # print('ERRORS TRAIN: ', errors_train)
+    #
+    # plt.figure()
+    # plt.plot(errors_train, color='black', marker='o')
+    # plt.plot(errors_test, color='red', marker='o')
+    # plt.show()
+    #
+    # ##
+    # # Jak kara lambda wpływa
+    # ##
+    # dt = DecisionTree(impurity="impurity_entropy")
+    # dt.fit(X_train_pca, y_train)
+    #
+    # pentalties = np.arange(0.015, 0.0, -0.0025)
+    # errors_train = np.zeros(pentalties.size)
+    # errors_test = np.zeros(pentalties.size)
+    # for i, penalty in enumerate(pentalties):
+    #     print('penalty', penalty)
+    #     dt = DecisionTree(impurity="impurity_entropy", pruning='greedy_subtrees', penalty=penalty)
+    #     t1 = time.time()
+    #     dt.fit(X_train_pca, y_train)
+    #     t2 = time.time()
+    #     print('time:', t2-t1)
+    #     errors_train[i] = 1 - dt.score(X_train_pca, y_train)
+    #     errors_test[i] = 1 - dt.score(X_test_pca, y_test)
+    #
+    # np.set_printoptions(threshold=np.inf, precision=5)
+    # best_penalty_index = np.argmin(errors_test)
+    # print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 -
+    #       errors_test[best_penalty_index])
+    # print('ERRORS TEST: ', errors_test)
+    # print('ERRORS TRAIN: ', errors_train)
+    #
+    # plt.figure()
+    # plt.plot(errors_train, color='black', marker='o')
+    # plt.plot(errors_test, color='red', marker='o')
+    # plt.title("greedy")
+    # plt.show()
+    #
+    # #
+    # # Exhaustive
+    # #
+    # dt = DecisionTree(impurity="impurity_entropy")
+    # dt.fit(X_train_pca, y_train)
+    #
+    # pentalties = np.arange(0.015, 0.0, -0.0025)
+    # errors_train = np.zeros(pentalties.size)
+    # errors_test = np.zeros(pentalties.size)
+    # for i, penalty in enumerate(pentalties):
+    #     print('penalty', penalty)
+    #     dt = DecisionTree(impurity="impurity_entropy", pruning='exhaustive_subtrees', penalty=penalty)
+    #     t1 = time.time()
+    #     dt.fit(X_train_pca, y_train)
+    #     t2 = time.time()
+    #     print('time:', t2-t1)
+    #     errors_train[i] = 1 - dt.score(X_train_pca, y_train)
+    #     errors_test[i] = 1 - dt.score(X_test_pca, y_test)
+    #
+    # np.set_printoptions(threshold=np.inf, precision=5)
+    # best_penalty_index = np.argmin(errors_test)
+    # print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 -
+    #       errors_test[best_penalty_index])
+    # print('ERRORS TEST: ', errors_test)
+    # print('ERRORS TRAIN: ', errors_train)
 
-    pentalties = np.arange(0.015, 0.0, -0.0025)
-    errors_train = np.zeros(pentalties.size)
-    errors_test = np.zeros(pentalties.size)
-    for i, penalty in enumerate(pentalties):
-        print('penalty', penalty)
-        dt = DecisionTree(impurity="impurity_entropy", pruning='exhaustive_subtrees', penalty=penalty)
-        t1 = time.time()
-        dt.fit(X_train_pca, y_train)
-        t2 = time.time()
-        print('time:', t2-t1)
-        errors_train[i] = 1 - dt.score(X_train_pca, y_train)
-        errors_test[i] = 1 - dt.score(X_test_pca, y_test)
+    # svc = SVC()
+    # svc.fit(X_train, y_train)
+    # print("SVC Default scores [train, test]:" + str(svc.score(X_train, y_train)) + ', ' + str(svc.score(X_test, y_test)))
+    #
+    # svc = SVC(C=10.0**1, kernel='rbf')
+    # svc.fit(X_train, y_train)
+    # print("SVC Default scores [train, test]:" + str(svc.score(X_train, y_train)) + ', ' + str(svc.score(X_test, y_test)))
 
-    np.set_printoptions(threshold=np.inf, precision=5)
-    best_penalty_index = np.argmin(errors_test)
-    print('BEST PENALTY:', str(pentalties[best_penalty_index]), " WITH TEST ACCURACY:", 1 -
-          errors_test[best_penalty_index])
-    print('ERRORS TEST: ', errors_test)
-    print('ERRORS TRAIN: ', errors_train)
+    Cs = 10.0*np.arange(1, 6)
+    svm_errs_train = np.zeros(Cs.size)
+    svm_errs_test = np.zeros(Cs.size)
+
+    for i, C in enumerate(Cs):
+        svc = SVC(C=C, kernel='linear')
+        svc.fit(X_train, y_train)
+        print(
+            "SVC Default scores [train, test]:" + str(svc.score(X_train, y_train)) + ', ' + str(svc.score(X_test, y_test)))
+        svm_errs_test[i] = svc.score(X_test, y_test)
+        svm_errs_train[i] = svc.score(X_train, y_train)
 
     plt.figure()
-    plt.plot(errors_train, color='black', marker='o')
-    plt.plot(errors_test, color='red', marker='o')
+    plt.plot(svm_errs_test, color='black', marker='o')
+    plt.plot(svm_errs_train, color='red', marker='o')
     plt.title("exhaustive")
     plt.show()
 
@@ -664,17 +684,21 @@ def tune_penalty():
     X_test_pca = X_test.dot(V[:, :n])
     data_all = olivetti.data.dot(V[:, :n])
 
-    penalties = np.arange(0.015, 0.0, -0.0025)
-    penalty = classifiers.choose_best_penalty(X_train_pca, y_train, penalties)
+    #penalties = np.arange(0.015, 0.0, -0.0025)
+    penalties = np.arange(0.02, 0.0, -0.005)
+    dt = classifiers.choose_best_penalty(X_train_pca, y_train, k=2, penalties=penalties)
+
+    print("Wynik klasyfikacji dla zbioru uczącego:", dt.score(X_train_pca, y_train))
+    print("Wynik klasyfikacji dla zbioru testowego:", dt.score(X_test_pca, y_test))
 
 
 if __name__ == '__main__':
     plt.style.use('default')
-    #main()
+    main()
     #tune_penalty()
     #dimension_comprasion()
     #dimension_impurity_comprasion()
     #depth_comparison()
-    sample_size_comparison()
+    #sample_size_comparison()
     #pruning_comparison_exhaustive()
     #pruning_comparison_greedy()
