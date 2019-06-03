@@ -14,6 +14,8 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 from sklearn.svm import SVC
+from sklearn import tree
+from sklearn.tree import DecisionTreeClassifier
 
 def pca(data, components=None, variance_sum_ratio=None):
     """
@@ -498,22 +500,22 @@ def main():
     X_test_pca = X_test.dot(V[:, :n])
     data_all = olivetti.data.dot(V[:, :n])
 
-    # dt = DecisionTree(impurity="impurity_entropy", pruning='greedy_subtrees', penalty=0.0)
-    # t1 = time.time()
-    # dt.fit(X_train_pca, y_train)
-    # t2 = time.time()
-    # print("Time: ", t2-t1)
-    #
-    # print(dt.tree_)
-    # print(dt.tree_.shape)
-    # print(np.sum(dt.tree_[:, DecisionTree.COL_CHILD_LEFT] == 0.0))
-    #
-    # predictions = dt.predict(X_test_pca[:10, :])
-    #
-    # print(predictions)
-    # print("Wynik klasyfikacji dla zbioru uczącego:", dt.score(X_train_pca, y_train))
-    # print("Wynik klasyfikacji dla zbioru testowego:", dt.score(X_test_pca, y_test))
-    # print("Wynik klasyfikacji dla zbioru testowego (custom):", np.sum(y_test == dt.predict(X_test_pca)) / y_test.size)
+    dt = DecisionTree(impurity="impurity_entropy")
+    t1 = time.time()
+    dt.fit(X_train_pca, y_train)
+    t2 = time.time()
+    print("Time: ", t2-t1)
+
+    print(dt.tree_)
+    print(dt.tree_.shape)
+    print(np.sum(dt.tree_[:, DecisionTree.COL_CHILD_LEFT] == 0.0))
+
+    predictions = dt.predict(X_test_pca[:10, :])
+
+    print(predictions)
+    print("Wynik klasyfikacji dla zbioru uczącego:", dt.score(X_train_pca, y_train))
+    print("Wynik klasyfikacji dla zbioru testowego:", dt.score(X_test_pca, y_test))
+    print("Wynik klasyfikacji dla zbioru testowego (custom):", np.sum(y_test == dt.predict(X_test_pca)) / y_test.size)
     #
     # # show_some_images(V.T, indexes=[6, 3, 7])
     # show_some_images(X_test[:10, :], subtitles=predictions)
@@ -634,27 +636,38 @@ def main():
     # svc.fit(X_train, y_train)
     # print("SVC Default scores [train, test]:" + str(svc.score(X_train, y_train)) + ', ' + str(svc.score(X_test, y_test)))
 
-    Cs = 10.0*np.arange(1, 6)
-    svm_errs_train = np.zeros(Cs.size)
-    svm_errs_test = np.zeros(Cs.size)
+    # Cs = 2.0**np.arange(-8, 2)
+    # svm_errs_train = np.zeros(Cs.size)
+    # svm_errs_test = np.zeros(Cs.size)
+    #
+    # for i, C in enumerate(Cs):
+    #     svc = SVC(C=C, kernel='linear')
+    #     svc.fit(X_train_pca, y_train)
+    #     print(
+    #         "SVC Default scores [train, test]:" + str(svc.score(X_train_pca, y_train)) + ', ' + str(svc.score(X_test_pca, y_test)))
+    #     svm_errs_test[i] = svc.score(X_test_pca, y_test)
+    #     svm_errs_train[i] = svc.score(X_train_pca, y_train)
+    #
+    # plt.figure()
+    # plt.plot(np.log(Cs), svm_errs_test, color='black', marker='o')
+    # plt.plot(np.log(Cs), svm_errs_train, color='red', marker='o')
+    # plt.title("")
+    # plt.grid(True)
+    # plt.show()
 
-    for i, C in enumerate(Cs):
-        svc = SVC(C=C, kernel='linear')
-        svc.fit(X_train, y_train)
-        print(
-            "SVC Default scores [train, test]:" + str(svc.score(X_train, y_train)) + ', ' + str(svc.score(X_test, y_test)))
-        svm_errs_test[i] = svc.score(X_test, y_test)
-        svm_errs_train[i] = svc.score(X_train, y_train)
-
-    plt.figure()
-    plt.plot(svm_errs_test, color='black', marker='o')
-    plt.plot(svm_errs_train, color='red', marker='o')
-    plt.title("exhaustive")
-    plt.show()
-
+    #
+    # Drzewko z sklearn
+    #
+    sklearn_tree = DecisionTreeClassifier(min_samples_split=2, criterion='entropy', random_state=0)
+    t1 = time.time()
+    sklearn_tree.fit(X_train_pca, y_train)
+    t2 = time.time()
+    print("Sklearn time", t2-t1)
+    print("Node count", sklearn_tree.tree_.node_count)
+    print("Train, test", sklearn_tree.score(X_train_pca, y_train), sklearn_tree.score(X_test_pca, y_test))
 
 def tune_penalty():
-    np.set_printoptions(threshold=np.inf, precision=1)
+    #np.set_printoptions(threshold=np.inf, precision=1)
     olivetti = datasets.fetch_olivetti_faces()
 
     glasses = np.genfromtxt('olivetti_glasses.txt', delimiter=',').astype(int)
@@ -679,14 +692,14 @@ def tune_penalty():
     ##
     # Classificatione experiments
     ##
-    n = 50
+    n = 10
     X_train_pca = X_train.dot(V[:, :n])
     X_test_pca = X_test.dot(V[:, :n])
     data_all = olivetti.data.dot(V[:, :n])
 
     #penalties = np.arange(0.015, 0.0, -0.0025)
     penalties = np.arange(0.02, 0.0, -0.005)
-    dt = classifiers.choose_best_penalty(X_train_pca, y_train, k=2, penalties=penalties)
+    dt = classifiers.choose_best_penalty(X_train_pca, y_train, k=4, penalties=penalties)
 
     print("Wynik klasyfikacji dla zbioru uczącego:", dt.score(X_train_pca, y_train))
     print("Wynik klasyfikacji dla zbioru testowego:", dt.score(X_test_pca, y_test))
@@ -694,8 +707,8 @@ def tune_penalty():
 
 if __name__ == '__main__':
     plt.style.use('default')
-    main()
-    #tune_penalty()
+    #main()
+    tune_penalty()
     #dimension_comprasion()
     #dimension_impurity_comprasion()
     #depth_comparison()
