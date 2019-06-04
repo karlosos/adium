@@ -1,8 +1,8 @@
 """
 TODO:
 - [ ] rysowanie marginesu
-- [ ] rysowanie płaszczyzn w 3d
-- [ ] cvxopt dla 3d
+- [x] rysowanie płaszczyzn w 3d
+- [x] cvxopt dla 3d
 - [x] svm soft margin (wartości C=0.1, 1.0, 10
 - [x] svm kernel='rbf' - wizualizacja wykres warstwicowy
 - [ ] svm kernel='rvf' obliczenie granicy
@@ -53,11 +53,11 @@ def cvxopt(X, y):
     A = cvxopt_matrix(y.reshape(1, -1))
     b = cvxopt_matrix(np.zeros(1))
 
-    # Setting solver parameters (change default to decrease tolerance)
-    cvxopt_solvers.options['show_progress'] = False
-    cvxopt_solvers.options['abstol'] = 1e-10
-    cvxopt_solvers.options['reltol'] = 1e-10
-    cvxopt_solvers.options['feastol'] = 1e-10
+    # # Setting solver parameters (change default to decrease tolerance)
+    # cvxopt_solvers.options['show_progress'] = False
+    # cvxopt_solvers.options['abstol'] = 1e-10
+    # cvxopt_solvers.options['reltol'] = 1e-10
+    # cvxopt_solvers.options['feastol'] = 1e-10
 
     # Run solver
     sol = cvxopt_solvers.qp(P, q, G, h, A, b)
@@ -98,10 +98,10 @@ def x1_visualisation(X, fn):
     print("SVC margines separacji tao =", 1 / np.sqrt(np.sum(clf.coef_ ** 2)))
 
 
-def x2_visualisation_svc(X):
+def x2_visualisation(X, fun):
     y = X[:, 3]
     X = X[:, :3]
-    clf = svm(X, y)
+    clf = fun(X, y)
     visualisation_3d(clf, X, y)
 
 
@@ -210,20 +210,17 @@ def visualisation_3d(clf, X, Y):
     tmp = np.linspace(-6, 6, 51)
     x, y = np.meshgrid(tmp, tmp)
 
-    # Plot stuff.
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.plot_surface(x, y, z(x, y))
 
-    # TODO fix surface
-    ax.plot_surface(x, y, z(x, y) + np.sqrt(1 + a ** 2) * margin)
-    ax.plot_surface(x, y, z(x, y) - np.sqrt(1 + a ** 2) * margin)
+    ax.plot_surface(x, y, z(x, y) + np.sqrt(1 + a ** 2) * margin/2, color='gray')
+    ax.plot_surface(x, y, z(x, y) - np.sqrt(1 + a ** 2) * margin/2, color='gray')
 
     ax.scatter(clf.support_vectors_[:, 0], clf.support_vectors_[:, 1], clf.support_vectors_[:, 2], s=80,
                 facecolors='green', zorder=10, edgecolors='k')
     ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=Y, zorder=10, cmap=plt.cm.Paired,
                 edgecolors='k')
-    # TODO zaznaczyć margines (można go poprowadzić np. od prostej separacji do punktów podparcia)
     plt.show()
 
 
@@ -255,9 +252,10 @@ def main():
 
     #x1_visualisation(X1, svm)
     #x1_visualisation(X1, cvxopt)
-    #x2_visualisation_svc(X2)
+    x2_visualisation(X2, svm)
+    x2_visualisation(X2, cvxopt)
     #x3_experiment(X3)
-    x3_rbf(X3)
+    #x3_rbf(X3)
 
 
 if __name__ == '__main__':
