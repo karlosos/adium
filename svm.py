@@ -2,7 +2,10 @@
 TODO:
 - [ ] rysowanie marginesu
 - [ ] rysowanie płaszczyzn w 3d
-- [ ] oblicze
+- [ ] cvxopt dla 3d
+- [x] svm soft margin (wartości C=0.1, 1.0, 10
+- [x] svm kernel='rbf' - wizualizacja wykres warstwicowy
+- [ ] svm kernel='rvf' obliczenie granicy
 """
 
 from scipy.io import loadmat
@@ -12,6 +15,8 @@ from cvxopt import matrix as cvxopt_matrix
 from cvxopt import solvers as cvxopt_solvers
 import numpy as np
 import matplotlib
+import warnings
+from matplotlib.colors import ListedColormap
 from mpl_toolkits.mplot3d import Axes3D
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -24,11 +29,11 @@ class MyClassifier():
         self.support_vectors_ = None
 
 
-def svm(X, y):
+def svm(X, y, C=1000):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
                                                         stratify=y, random_state=0)
 
-    clf = SVC(C=1000, kernel='linear')
+    clf = SVC(C=C, kernel='linear')
     clf.fit(X_train, y_train)
     print(
         "SVC Default scores [train, test]:" + str(clf.score(X_train, y_train)) + ', ' + str(clf.score(X_test, y_test)))
@@ -100,6 +105,74 @@ def x2_visualisation_svc(X):
     visualisation_3d(clf, X, y)
 
 
+def x3_experiment(X):
+    y = X[:, 2]
+    X = X[:, :2]
+
+    Cs = [0.1, 1.0, 10.0]
+    svm_errs_train = np.zeros(len(Cs))
+    svm_errs_test = np.zeros(len(Cs))
+
+    fig = plt.figure()
+    number_of_subplots = len(Cs)
+
+    for i, C in enumerate(Cs):
+        clf = svm(X, y, C)
+        print("SVM C =", C)
+        print('w = ', clf.coef_)
+        print('b = ', clf.intercept_)
+        print('Support vectors = ', clf.support_vectors_)
+        w = clf.coef_[0]
+        print("SVC margines separacji tao =", (1 / np.linalg.norm(w)))
+        print("SVC margines separacji tao =", 1 / np.sqrt(np.sum(clf.coef_ ** 2)))
+        print("========================")
+
+        w = clf.coef_[0]
+        a = -w[0] / w[1]
+        xx_min = np.min(X[:, 0])
+        xx_max = np.max(X[:, 0])
+        xx = np.linspace(xx_min, xx_max)
+        yy = a * xx - (clf.intercept_[0]) / w[1]
+
+        margin = 1 / np.sqrt(np.sum(clf.coef_ ** 2))
+        yy_down = yy - np.sqrt(1 + a ** 2) * margin
+        yy_up = yy + np.sqrt(1 + a ** 2) * margin
+
+        ax = plt.subplot(number_of_subplots, 1, i+1)
+        plt.plot(xx, yy, 'k-')
+        plt.plot(xx, yy_down, 'k--')
+        plt.plot(xx, yy_up, 'k--')
+
+        plt.scatter(clf.support_vectors_[:, 0], clf.support_vectors_[:, 1], s=80,
+                    facecolors='none', zorder=10, edgecolors='k')
+        plt.scatter(X[:, 0], X[:, 1], c=y, zorder=10, cmap=plt.cm.Paired,
+                    edgecolors='k')
+
+        # TODO zaznaczyć margines (można go poprowadzić np. od prostej separacji do punktów podparcia) - czerwona linia
+        # plt.plot([clf.support_vectors_[0, 0], 1], [clf.support_vectors_[0, 1], 1], 'ro-')
+
+        ax.title.set_text("C="+str(C) + " margines=" + str((1 / np.linalg.norm(w))))
+
+    plt.show()
+
+
+def x3_rbf(X):
+    y = X[:, 2]
+    X = X[:, :2]
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+                                                        stratify=y, random_state=0)
+
+    clf = SVC(kernel='rbf')
+    clf.fit(X_train, y_train)
+    print(
+        "SVC Default scores [train, test]:" + str(clf.score(X_train, y_train)) + ', ' + str(clf.score(X_test, y_test)))
+
+    plot_decision_regions(X, y, classifier=clf)
+    plt.tight_layout()
+    plt.show()
+
+
 def visualisation_2d(clf, X, y):
     w = clf.coef_[0]
     a = -w[0] / w[1]
@@ -123,9 +196,8 @@ def visualisation_2d(clf, X, y):
     plt.scatter(X[:, 0], X[:, 1], c=y, zorder=10, cmap=plt.cm.Paired,
                 edgecolors='k')
 
-    # TODO zaznaczyć margines (można go poprowadzić np. od prostej separacji do punktów podparcia)
-    plt.plot([clf.support_vectors_[0, 0], 1], [clf.support_vectors_[0, 1], 1], 'ro-')
-    plt.plot()
+    # TODO zaznaczyć margines (można go poprowadzić np. od prostej separacji do punktów podparcia) - czerwona linia
+    #plt.plot([clf.support_vectors_[0, 0], 1], [clf.support_vectors_[0, 1], 1], 'ro-')
 
     plt.show()
 
@@ -155,15 +227,37 @@ def visualisation_3d(clf, X, Y):
     plt.show()
 
 
+def versiontuple(v):
+    return tuple(map(int, (v.split("."))))
+
+
+def plot_decision_regions(X, y, classifier, resolution=0.02):
+    x1_min, x1_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+    x2_min, x2_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+    xx1, xx2 = np.meshgrid(np.arange(x1_min, x1_max, resolution),
+                           np.arange(x2_min, x2_max, resolution))
+    Z = classifier.decision_function(np.array([xx1.ravel(), xx2.ravel()]).T).reshape(xx2.shape)
+    plt.contour(xx1, xx2, Z, alpha=0.4, cmap=plt.cm.Paired, levels=[-1, 0, 1], linestyles=['--', '-', '--'])
+    plt.xlim(xx1.min(), xx1.max())
+    plt.ylim(xx2.min(), xx2.max())
+
+    plt.scatter(classifier.support_vectors_[:, 0], classifier.support_vectors_[:, 1], s=80,
+                facecolors='none', zorder=10, edgecolors='k')
+    plt.scatter(X[:, 0], X[:, 1], c=y, zorder=10, cmap=plt.cm.Paired,
+                edgecolors='k')
+
+
 def main():
     D = loadmat("data/data_for_svm.mat")
     X1 = D['X1']
     X2 = D['X2']
     X3 = D['X3']
 
-    x1_visualisation(X1, svm)
-    x1_visualisation(X1, cvxopt)
+    #x1_visualisation(X1, svm)
+    #x1_visualisation(X1, cvxopt)
     #x2_visualisation_svc(X2)
+    #x3_experiment(X3)
+    x3_rbf(X3)
 
 
 if __name__ == '__main__':
