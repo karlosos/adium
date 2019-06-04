@@ -15,8 +15,7 @@ from cvxopt import matrix as cvxopt_matrix
 from cvxopt import solvers as cvxopt_solvers
 import numpy as np
 import matplotlib
-import warnings
-from matplotlib.colors import ListedColormap
+import time
 from mpl_toolkits.mplot3d import Axes3D
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -37,7 +36,7 @@ def svm(X, y, C=1000):
     clf.fit(X_train, y_train)
     print(
         "SVC Default scores [train, test]:" + str(clf.score(X_train, y_train)) + ', ' + str(clf.score(X_test, y_test)))
-    return clf
+    return clf, [X_train, X_test, y_train, y_test]
 
 
 def cvxopt(X, y):
@@ -53,13 +52,6 @@ def cvxopt(X, y):
     A = cvxopt_matrix(y.reshape(1, -1))
     b = cvxopt_matrix(np.zeros(1))
 
-    # # Setting solver parameters (change default to decrease tolerance)
-    # cvxopt_solvers.options['show_progress'] = False
-    # cvxopt_solvers.options['abstol'] = 1e-10
-    # cvxopt_solvers.options['reltol'] = 1e-10
-    # cvxopt_solvers.options['feastol'] = 1e-10
-
-    # Run solver
     sol = cvxopt_solvers.qp(P, q, G, h, A, b)
     alphas = np.array(sol['x'])
 
@@ -72,36 +64,43 @@ def cvxopt(X, y):
     # Computing b
     b = y[S] - np.dot(X[S], w)
 
-    # # Display results
-    # print('Alphas = ', alphas[alphas > 1e-4])
-    # print('w = ', w.flatten())
-    # print('b = ', b[0])
-
     clf = MyClassifier()
     clf.coef_.append(w.flatten())
     clf.coef_ = np.asarray(clf.coef_)
     clf.intercept_ = b[0].tolist()
     clf.support_vectors_ = X[S]
-    return clf
+    return clf, []
 
 
 def x1_visualisation(X, fn):
     y = X[:, 2]
     X = X[:, :2]
-    clf = fn(X, y)
+    t1 = time.time()
+    clf, _ = fn(X, y)
+    t2 = time.time()
+    print(fn.__name__, " x1 - time:", t2-t1)
     print('w = ', clf.coef_)
     print('b = ', clf.intercept_)
     print('Support vectors = ', clf.support_vectors_)
-    visualisation_2d(clf, X, y)
     w = clf.coef_[0]
     print("SVC margines separacji tao =", (1 / np.linalg.norm(w)))
     print("SVC margines separacji tao =", 1 / np.sqrt(np.sum(clf.coef_ ** 2)))
+    print("========================")
+    visualisation_2d(clf, X, y)
 
 
-def x2_visualisation(X, fun):
+def x2_visualisation(X, fn):
     y = X[:, 3]
     X = X[:, :3]
-    clf = fun(X, y)
+    t1 = time.time()
+    clf, _ = fn(X, y)
+    t2 = time.time()
+    print(fn.__name__, " x1 - time:", t2-t1)
+    print('w = ', clf.coef_)
+    print('b = ', clf.intercept_)
+    print('Support vectors = ', clf.support_vectors_)
+    print("SVC margines separacji tao =", 1 / np.sqrt(np.sum(clf.coef_ ** 2)))
+    print("========================")
     visualisation_3d(clf, X, y)
 
 
@@ -116,8 +115,11 @@ def x3_experiment(X):
     fig = plt.figure()
     number_of_subplots = len(Cs)
 
+    svm_errs_train = np.zeros(len(Cs))
+    svm_errs_test = np.zeros(len(Cs))
+
     for i, C in enumerate(Cs):
-        clf = svm(X, y, C)
+        clf, [X_train, X_test, y_train, y_test] = svm(X, y, C)
         print("SVM C =", C)
         print('w = ', clf.coef_)
         print('b = ', clf.intercept_)
@@ -126,6 +128,9 @@ def x3_experiment(X):
         print("SVC margines separacji tao =", (1 / np.linalg.norm(w)))
         print("SVC margines separacji tao =", 1 / np.sqrt(np.sum(clf.coef_ ** 2)))
         print("========================")
+
+        svm_errs_test[i] = clf.score(X_test, y_test)
+        svm_errs_train[i] = clf.score(X_train, y_train)
 
         w = clf.coef_[0]
         a = -w[0] / w[1]
@@ -153,6 +158,13 @@ def x3_experiment(X):
 
         ax.title.set_text("C="+str(C) + " margines=" + str((1 / np.linalg.norm(w))))
 
+    plt.show()
+
+    plt.figure()
+    plt.plot(Cs, svm_errs_test, color='black', marker='o')
+    plt.plot(Cs, svm_errs_train, color='red', marker='o')
+    plt.title("SVM Soft Margin")
+    plt.grid(True)
     plt.show()
 
 
@@ -250,12 +262,12 @@ def main():
     X2 = D['X2']
     X3 = D['X3']
 
-    #x1_visualisation(X1, svm)
-    #x1_visualisation(X1, cvxopt)
+    x1_visualisation(X1, svm)
+    x1_visualisation(X1, cvxopt)
     x2_visualisation(X2, svm)
     x2_visualisation(X2, cvxopt)
-    #x3_experiment(X3)
-    #x3_rbf(X3)
+    x3_experiment(X3)
+    x3_rbf(X3)
 
 
 if __name__ == '__main__':
