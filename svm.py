@@ -1,6 +1,6 @@
 """
 TODO:
-- [ ] rysowanie marginesu
+- [x] rysowanie marginesu
 - [x] rysowanie płaszczyzn w 3d
 - [x] cvxopt dla 3d
 - [x] svm soft margin (wartości C=0.1, 1.0, 10
@@ -186,31 +186,50 @@ def x3_rbf(X):
 
 
 def visualisation_2d(clf, X, y):
+    print(clf.coef_)
+    print(clf.intercept_)
     w = clf.coef_[0]
+    intercept = clf.intercept_
     a = -w[0] / w[1]
-    xx_min = np.min(X[:, 0])
-    xx_max = np.max(X[:, 0])
-    xx = np.linspace(xx_min, xx_max)
-    yy = a * xx - (clf.intercept_[0]) / w[1]
+    b = -intercept[0] / w[1]
+    x_min = np.min(X[:, 0])
+    x_max = np.max(X[:, 0])
+    xx = np.linspace(x_min, x_max)
+    separation = a * xx + b
 
     margin = 1 / np.sqrt(np.sum(clf.coef_ ** 2))
-    yy_down = yy - np.sqrt(1 + a ** 2) * margin
-    yy_up = yy + np.sqrt(1 + a ** 2) * margin
+    b_down = b - margin
+    b_up = b + margin
+    margin_down = a * xx + b_down
+    margin_up = a * xx + b_up
+
+    if clf.__class__ == MyClassifier:
+        x1 = clf.support_vectors_[-1][0]
+        y1 = clf.support_vectors_[-1][1]
+    else:
+        x1 = clf.support_vectors_[0][0]
+        y1 = clf.support_vectors_[0][1]
+
+    # prostopadla
+    a_perp = -1 / a
+    b_perp = x1 * (1 / a + a) + b_down
+
+    # przeciecie prostopadlej i srodkowej
+    x_mid = (b - b_perp) / (a_perp - a)
+    y_mid = a_perp * x_mid + b_perp
 
     plt.figure()
     plt.clf()
-    plt.plot(xx, yy, 'k-')
-    plt.plot(xx, yy_down, 'k--')
-    plt.plot(xx, yy_up, 'k--')
+    plt.plot(xx, separation)
+    plt.plot(xx, margin_down, 'k--')
+    plt.plot(xx, margin_up, 'k--')
 
     plt.scatter(clf.support_vectors_[:, 0], clf.support_vectors_[:, 1], s=80,
-                facecolors='none', zorder=10, edgecolors='k')
-    plt.scatter(X[:, 0], X[:, 1], c=y, zorder=10, cmap=plt.cm.Paired,
-                edgecolors='k')
+                facecolors='none', edgecolors='k')
+    plt.scatter(X[:, 0], X[:, 1], c=y)
 
-    # TODO zaznaczyć margines (można go poprowadzić np. od prostej separacji do punktów podparcia) - czerwona linia
-    #plt.plot([clf.support_vectors_[0, 0], 1], [clf.support_vectors_[0, 1], 1], 'ro-')
-
+    plt.plot([x1, x_mid], [y1, y_mid], 'o-')
+    plt.axes().set_aspect('equal')
     plt.show()
 
 
